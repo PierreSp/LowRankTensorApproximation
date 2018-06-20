@@ -1,11 +1,5 @@
 import tensorly as tl
 import numpy as np
-import pytest
-import time
-
-tensor = tl.tensor(np.arange(24).reshape((3, 4, 2)))
-unfolded = tl.unfold(tensor, mode=0)
-tl.fold(unfolded, mode=0, shape=tensor.shape)
 
 
 class HighOrderSVD():
@@ -45,7 +39,7 @@ class HighOrderSVD():
         return B1
 
     def calculate_core(self, tensor):
-        """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1x_2U_2x_3U_3
+        """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
 
 
         Parameters
@@ -65,12 +59,22 @@ class HighOrderSVD():
         # Calculate S = A x_1 U_1^T x_2...
         res = tensor
         for i in range(len(tensor.shape)):
-            res = self._mode_mul(tensor, self.U[i], mode=i)
+            res = self._mode_mul(res, self.U[i].T, mode=i)
         self.S = res
         return res
+
+    def __checkHOSVD(self, tensor):
+        """
+        Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1x_2U_2x_3U_3
+        Used for testing
+        """
+        recon = self.S
+        for i in range(len(self.S.shape)):
+            recon = self._mode_mul(recon, self.U[i], mode=i)
+        return np.allclose(tensor, recon)
 
 
 def testing_suit(benchmark):
     HO = HighOrderSVD()
     benchmark(HO.calculate_core())
-    assert(np.allclose(HO.B1, HO.checkA()))
+    assert(HO.__checkHOSVD(HO.B1))
