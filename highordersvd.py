@@ -1,5 +1,6 @@
 import tensorly as tl
 import numpy as np
+import numba as nb
 
 
 class NotInitializedError(Exception):
@@ -23,9 +24,13 @@ class HighOrderSVD():
             self.tensor = self._generator_B_one()
         else:
             self.tensor = tensor
+        self.dim = tensor.shape
+        if len(self.dim) < 3:
+            raise ValueError("Please enter a tensor not a matrix or vector")
         self.core = False
         self.tucker = False
 
+    @nb.jit
     def _mode_mul(self, tensor, matrix, mode=0):
         """Computed the mode product between a matrix and a tensor
 
@@ -42,9 +47,10 @@ class HighOrderSVD():
                 str(tensor.shape[mode]), str(matrix.shape[1])))
         new_shape = [x for x in tensor.shape]
         new_shape[mode] = matrix.shape[0]
-        out = np.matmul(matrix, tl.unfold(tensor, mode))
+        out = np.dot(matrix, tl.unfold(tensor, mode))
         return tl.fold(out, mode, new_shape)
 
+    @nb.jit
     def _generator_B_one(self):
         # Generates a matrix of the form ()
         B1 = tl.tensor(np.ones((np.repeat(self.N, self.d))))
@@ -56,9 +62,9 @@ class HighOrderSVD():
                         i / (self.N + 1) + j / (self.N + 1) + z / (self.N + 1))
         return B1
 
+    @nb.jit
     def calculate_core(self, tucker=False):
         """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
-
 
         Parameters
         ----------
@@ -68,20 +74,20 @@ class HighOrderSVD():
             if not self.core:
                 raise NotInitializedError(
                     "The core was not initialized, please run calculate_core with tucker=False")
-            res = self.tensor
+            Core = self.tensor
             for i in range(len(self.tensor.shape)):
-                res = self._mode_mul(res, self.U_truncated[i][0], mode=i)
-            self.C = res
+                Core = self._mode_mul(Core, self.U_truncated[i].T, mode=i)
+            self.C = Core
             self.tucker = True
-            return res
+            return Core
         else:
             tensor = self.tensor
-            self.U = np.zeros((len(tensor.shape), self.N, self.N))
-
+            self.U = []
             # Calculate SVD for all mode matricitations and save the U matrices
             for (i, size) in enumerate(tensor.shape):
-                self.U[i, :, :], s0, vh0 = np.linalg.svd(tl.unfold(
+                U, s0, vh0 = np.linalg.svd(tl.unfold(
                     tensor, mode=i), full_matrices=False)
+                self.U.append(U)
             # Calculate S = A x_1 U_1^T x_2...
             res = tensor
             for i in range(len(tensor.shape)):
@@ -92,22 +98,24 @@ class HighOrderSVD():
 
     def _checkHOSVD(self):
         """
-        Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1x_2U_2x_3U_3
-        Used for testing
+        Computed t
         """
         recon = self.S
         for i in range(len(self.S.shape)):
             recon = self._mode_mul(recon, self.U[i], mode=i)
         return np.allclose(self.tensor, recon)
 
-    def tucker_decomposition(self, ranks, acc=10e-4):
+    def tucker_decomposition(self, ranks):
         if not self.core:
             raise NotInitializedError(
                 "The core was not initialized, please run calculate_core with tucker=False")
         self.U_truncated = []
-        for rank in ranks:
-            self.U_truncated.append(self.U[:, 0:(rank)])
+        for i, rank in enumerate(ranks):
+            self.U_truncated.append(self.U[i, :, 0:(rank)])
         self.calculate_core(tucker=True)
+
+    def tucker_opt(self, acc=10e-4):
+        ranks = self.dim
 
     def compare_tucker(self):
         if not self.tucker:
@@ -117,17 +125,16 @@ class HighOrderSVD():
         # Calculate truncated tensor using tucker core C
         res = self.C
         for i in range(len(self.tensor.shape)):
-            res = self._mode_mul(res, self.U_truncated[i][0].T, mode=i)
-        delta = res - self.tensor
+            res = self._mode_mul(res, self.U_truncated[i], mode=i)
         frob_init = np.linalg.norm(tl.unfold(self.tensor, 0), "fro")
-        delta = tl.unfold(delta, 0)
+        delta = tl.unfold(res - self.tensor, 0)
         print(frob_init)
         print("The difference wrt to the frobenius norm is: " +
-              str(np.linalg.norm(delta, "fro") / frob_init))
+              str(np.linalg.norm(delta, "fro")))
 
 
 def testing_suit(benchmark):
-    N = 20
+    N = 200
     HO = HighOrderSVD(N)
     benchmark(HO.calculate_core)
     # tl.set_backend('tensorflow')
@@ -136,8 +143,9 @@ def testing_suit(benchmark):
     # benchmark(HO.calculate_core)
     tl.set_backend('numpy')
     assert(HO._checkHOSVD())
-    HO.tucker_decomposition([N - 1, N - 1, N - 1])
+    HO.tucker_decomposition([3, 3, 3])
     assert(HO.compare_tucker() < 10e-1)
+
 
 if __name__ == "__main__":
     HO = HighOrderSVD(100)
