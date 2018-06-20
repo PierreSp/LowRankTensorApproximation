@@ -52,15 +52,22 @@ class HighOrderSVD():
         ----------
         tensor : tl.tensor or ndarray
         """
-        self.u0, s0, vh0 = np.linalg.svd(tl.unfold(
-            tensor, mode=0), full_matrices=False)
-        self.u1, s1, vh1 = np.linalg.svd(tl.unfold(
-            tensor, mode=1), full_matrices=False)
-        self.u2, s2, vh2 = np.linalg.svd(tl.unfold(
-            tensor, mode=2), full_matrices=False)
-        self.S = self._mode_mul(self.u0,
-                                self._mode_mul(self.u1,
-                                               self._mode_mul(self.u2, self.B1, 2), 1), 0)
+        self.U = np.shape(len(tensor.shape), self.N, self.N)
+
+        # Calculate SVD for all mode matricitations and save the U matrices
+        for (i, size) in enumerate(tensor.shape):
+            self.U[i, :, :], s0, vh0 = np.linalg.svd(tl.unfold(
+                tensor, mode=i), full_matrices=False)
+
+            self.S = self._mode_mul(self.u0,
+                                    self._mode_mul(self.u1,
+                                                   self._mode_mul(self.u2, self.B1, 2), 1), 0)
+        # Calculate S = A x_1 U_1^T x_2...
+        res = tensor
+        for i in range(len(tensor.shape)):
+            res = self._mode_mul(tensor, self.U[i], mode=i)
+        self.S = res
+        return res
 
 
 def testing_suit(benchmark):
