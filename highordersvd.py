@@ -65,8 +65,23 @@ class HighOrderSVD():
             for j in range(self.N):
                 for z in range(self.N):
                     B1[i, j, z] = np.sin(
-                        i / (self.N + 1) + j / (self.N + 1) + z / (self.N + 1))
+                        np.sum(self._tsi(np.array([i, j, z]))))
         return B1
+
+    def _tsi(self, x):
+        return(x / (self.N + 1))
+
+    @nb.jit
+    def _generator_B_two(self):
+        # Generates a matrix of the form ()
+        B2 = tl.tensor(np.ones((np.repeat(self.N, self.d))))
+        # Very bad three loop style
+        for i in range(self.N):
+            for j in range(self.N):
+                for z in range(self.N):
+                    B2[i, j, z] = np.linalg.norm(
+                        self._tsi(np.array([i, j, z])))
+        return B2
 
     @nb.jit
     def calculate_core(self, tucker=False, ranks=None):
