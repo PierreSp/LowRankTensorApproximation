@@ -68,16 +68,6 @@ class HighOrderSVD():
         return B1
 
     @nb.jit
-    def _tensor_frob_norm(self, tensor):
-        """Compute the frobenius norm of a tensor
-
-        Parameters
-        ----------
-        tensor : tl.tensor or ndarray
-        """
-        pass
-
-    @nb.jit
     def calculate_core(self, tucker=False):
         """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
 
@@ -113,7 +103,7 @@ class HighOrderSVD():
 
     def _checkHOSVD(self):
         """
-        Computed t
+        Reconstruct inital tensor from HOSVD and check whether it is the original tensor 
         """
         recon = self.S
         for i in range(len(self.dims)):
