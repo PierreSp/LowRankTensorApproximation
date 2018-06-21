@@ -68,7 +68,7 @@ class HighOrderSVD():
         return B1
 
     @nb.jit
-    def calculate_core(self, tucker=False):
+    def calculate_core(self, tucker=False, ranks=None):
         """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
 
         Parameters
@@ -76,9 +76,15 @@ class HighOrderSVD():
         tensor : tl.tensor or ndarray
         """
         if tucker:
+            if ranks is None or len(ranks) != len(self.dims):
+                raise ValueError(
+                    "Please set ranks according to the dimensions of the tensor")
             if not self.core:
-                raise NotInitializedError(
-                    "The core was not initialized, please run calculate_core with tucker=False")
+                self.calculate_core(tucker=False)
+            self.U_truncated = []
+            for i, rank in enumerate(ranks):
+                rank = int(rank)
+                self.U_truncated.append(self.U[i][:, 0:rank])
             Core = self.tensor
             for i in range(len(self.dims)):
                 Core = self._mode_mul(Core, self.U_truncated[i].T, mode=i)
@@ -103,22 +109,12 @@ class HighOrderSVD():
 
     def _checkHOSVD(self):
         """
-        Reconstruct inital tensor from HOSVD and check whether it is the original tensor 
+        Reconstruct inital tensor from HOSVD and check whether it is the original tensor
         """
         recon = self.S
         for i in range(len(self.dims)):
             recon = self._mode_mul(recon, self.U[i], mode=i)
         return np.allclose(self.tensor, recon)
-
-    def tucker_decomposition(self, ranks):
-        if not self.core:
-            raise NotInitializedError(
-                "The core was not initialized, please run calculate_core with tucker=False")
-        self.U_truncated = []
-        for i, rank in enumerate(ranks):
-            rank = int(rank)
-            self.U_truncated.append(self.U[i][:, 0:rank])
-        self.calculate_core(tucker=True)
 
     def tucker_opt(self, acc=10e-4):
         ranks = np.ones(len(self.dims))
@@ -160,7 +156,7 @@ def testing_suit(benchmark):
     # benchmark(HO.calculate_core)
     tl.set_backend('numpy')
     assert(HO._checkHOSVD())
-    HO.tucker_decomposition([N - 1, N - 1, N - 1])
+    HO.calculate_core(tucker=True, ranks=[N - 1, N - 1, N - 1])
     assert(HO.frob_tucker() < 10e-1)
 
 
@@ -168,6 +164,6 @@ if __name__ == "__main__":
     HO = HighOrderSVD(100)
     # print("The core of the B1 tensor given is: ")
     HO.calculate_core()
-    HO.tucker_decomposition([5, 5, 5])
+    HO.calculate_core(tucker=True, ranks=[5, 5, 5])
     print(HO.frob_tucker())
     HO.tucker_opt()
