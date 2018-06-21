@@ -27,7 +27,8 @@ class HighOrderSVD():
         else:
             self.tensor = tensor
         self.dims = self.tensor.shape
-        if len(self.dims) < 3:
+        self.ndims = len(self.dims)
+        if self.ndims < 3:
             raise ValueError("Please enter a tensor not a matrix or vector")
         self.core = False
         self.tucker = False
@@ -76,7 +77,7 @@ class HighOrderSVD():
         tensor : tl.tensor or ndarray
         """
         if tucker:
-            if ranks is None or len(ranks) != len(self.dims):
+            if ranks is None or len(ranks) != self.ndims:
                 raise ValueError(
                     "Please set ranks according to the dimensions of the tensor")
             if not self.core:
@@ -86,7 +87,7 @@ class HighOrderSVD():
                 rank = int(rank)
                 self.U_truncated.append(self.U[i][:, 0:rank])
             Core = self.tensor
-            for i in range(len(self.dims)):
+            for i in range(self.ndims):
                 Core = self._mode_mul(Core, self.U_truncated[i].T, mode=i)
             self.C = Core
             self.tucker = True
@@ -101,7 +102,7 @@ class HighOrderSVD():
                 self.U.append(U)
             # Calculate S = A x_1 U_1^T x_2...
             res = tensor
-            for i in range(len(self.dims)):
+            for i in range(self.ndims):
                 res = self._mode_mul(res, self.U[i].T, mode=i)
             self.S = res
             self.core = True
@@ -112,23 +113,28 @@ class HighOrderSVD():
         Reconstruct inital tensor from HOSVD and check whether it is the original tensor
         """
         recon = self.S
-        for i in range(len(self.dims)):
+        for i in range(self.ndims):
             recon = self._mode_mul(recon, self.U[i], mode=i)
         return np.allclose(self.tensor, recon)
 
-    def tucker_opt(self, acc=10e-4):
-        ranks = np.ones(len(self.dims))
-        err = 1
-        counter = 0
-        while (err > acc):
-            self.tucker_decomposition(ranks)
-            err = self.frob_tucker()
-            ranks += 1
-            counter += 1
-            if counter >= self.N:
-                raise ValueError("Did not achieve wanted accuracy?")
-        print("Achieved wanted accuracy with ranks: " + str(ranks))
-        print("Accuracy: " + str(err))
+    def tucker_opt(self, lbound=1, rbound=None, acc=10e-4):
+        """ Search for symmetric rank using recursive binary search"""
+        if rbound is None:
+            rbound = self.N
+        if lbound + 1 == rbound:
+            print("Achieved accuracy with ranks: " + str(rbound))
+            return rbound
+        middle = np.floor((lbound + rbound) / 2)
+        ranks = middle * np.ones(self.ndims)
+        self.calculate_core(tucker=True, ranks=ranks)
+        err = self.frob_tucker()
+        print("Accuracy with ranks: " + str(ranks) + " is : " + str(err))
+        if err < acc:
+            new_rank = self.tucker_opt(lbound, middle)
+            return new_rank
+        elif err > acc:
+            new_rank = self.tucker_opt(middle, rbound)
+            return new_rank
 
     def frob_tucker(self):
         if not self.tucker:
@@ -141,8 +147,6 @@ class HighOrderSVD():
             res = self._mode_mul(res, self.U_truncated[i], mode=i)
         delta = tl.unfold(res - self.tensor, 0)
         error = np.linalg.norm(delta, "fro")
-        print("The difference wrt to the frobenius norm is: " +
-              str(error))
         return error
 
 
@@ -166,4 +170,4 @@ if __name__ == "__main__":
     HO.calculate_core()
     HO.calculate_core(tucker=True, ranks=[5, 5, 5])
     print(HO.frob_tucker())
-    HO.tucker_opt()
+    HO.tucker_opt(1, HO.N)
