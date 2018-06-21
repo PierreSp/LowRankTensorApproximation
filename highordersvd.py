@@ -32,10 +32,13 @@ class HighOrderSVD():
         self.core = False
         self.tucker = False
 
+#######################
+#        Tools        #
+#######################
+
     @nb.jit
     def _mode_mul(self, tensor, matrix, mode=0):
         """Computed the mode product between a matrix and a tensor
-
 
         Parameters
         ----------
@@ -63,6 +66,16 @@ class HighOrderSVD():
                     B1[i, j, z] = np.sin(
                         i / (self.N + 1) + j / (self.N + 1) + z / (self.N + 1))
         return B1
+
+    @nb.jit
+    def _tensor_frob_norm(self, tensor):
+        """Compute the frobenius norm of a tensor
+
+        Parameters
+        ----------
+        tensor : tl.tensor or ndarray
+        """
+        pass
 
     @nb.jit
     def calculate_core(self, tucker=False):
@@ -123,7 +136,7 @@ class HighOrderSVD():
         counter = 0
         while (err > acc):
             self.tucker_decomposition(ranks)
-            err = self.compare_tucker()
+            err = self.frob_tucker()
             ranks += 1
             counter += 1
             if counter >= self.N:
@@ -131,7 +144,7 @@ class HighOrderSVD():
         print("Achieved wanted accuracy with ranks: " + str(ranks))
         print("Accuracy: " + str(err))
 
-    def compare_tucker(self):
+    def frob_tucker(self):
         if not self.tucker:
             raise NotInitializedError(
                 "The tucker was not initialized, please run tucker_decomposition")
@@ -157,8 +170,8 @@ def testing_suit(benchmark):
     # benchmark(HO.calculate_core)
     tl.set_backend('numpy')
     assert(HO._checkHOSVD())
-    HO.tucker_decomposition([3, 3, 3])
-    assert(HO.compare_tucker() < 10e-1)
+    HO.tucker_decomposition([N - 1, N - 1, N - 1])
+    assert(HO.frob_tucker() < 10e-1)
 
 
 if __name__ == "__main__":
@@ -166,5 +179,5 @@ if __name__ == "__main__":
     # print("The core of the B1 tensor given is: ")
     HO.calculate_core()
     HO.tucker_decomposition([5, 5, 5])
-    print(HO.compare_tucker())
+    print(HO.frob_tucker())
     HO.tucker_opt()
