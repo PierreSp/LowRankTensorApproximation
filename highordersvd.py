@@ -2,14 +2,35 @@ import tensorly as tl
 import numpy as np
 import numba as nb
 
+#######################
+#######################
+#       Messages      #
+#######################
+
 
 class NotInitializedError(Exception):
 
     def __init__(self, message):
         self.message = message
 
+#######################
+#######################
+#     Main class      #
+#######################
+
 
 class HighOrderSVD():
+    """Class for calculation of High Order SVD
+
+    This class currently supports full high order SVD calculation as
+    well as tucker decomposition after the calculaton of the full
+    hosvd. It is also possible to find the minimum rank tucker decomposition
+    for a given accuracy (equal ranks in all dimensions)
+
+        Parameters
+        ----------
+        tensor : tl.tensor or ndarray
+    """
 
     def __init__(self, tensor):
         self.N = tensor.shape[0]
@@ -103,7 +124,8 @@ class HighOrderSVD():
         if rbound is None:
             rbound = self.N
         if lbound + 1 == rbound:
-            print("Achieved accuracy with ranks: " + str(np.ones(self.ndims) * rbound))
+            print("Achieved accuracy with ranks: " +
+                  str(np.ones(self.ndims) * rbound))
             return rbound
         middle = np.floor((lbound + rbound) / 2)
         ranks = middle * np.ones(self.ndims)
