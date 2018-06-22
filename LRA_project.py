@@ -1,6 +1,16 @@
 import numpy as np
 import numba as nb
+import argparse
 from highordersvd import HighOrderSVD
+
+
+parser = argparse.ArgumentParser(
+    description='Calculate HOSVD and tucker decomposition for the LRA homework.')
+parser.add_argument('dimension', type=int, default=200,
+                    help='Dimension for the tensor')
+parser.add_argument('--acc', type=float, default=10e-4,
+                    help='Allowed error wrt. frobenius norm between tucker decomposition and original tensor')
+args = parser.parse_args()
 
 
 def tsi(x, N):
@@ -30,11 +40,15 @@ def gen_B_two(N):
 
 
 if __name__ == "__main__":
-    # Sinus rhs
-    tensor = gen_B_two(100)
+    N = args.dimension
+    print("Number of dimension: " + str(N))
+    print("Calculation rhs B with sin")
+    tensor = gen_B_one(N)
+    print("Calculated B1")
     HO = HighOrderSVD(tensor)
-    HO.tucker_opt(1, HO.N)
-    # L2 rhs
-    tensor = gen_B_one(100)
+    HO.tucker_opt(1, HO.N, acc=args.acc)
+    print("Calculation rhs B with L2")
+    tensor = gen_B_two(N)
+    print("Calculated B2")
     HO = HighOrderSVD(tensor)
-    HO.tucker_opt(1, HO.N)
+    HO.tucker_opt(1, HO.N, acc=args.acc)

@@ -74,6 +74,16 @@ class HighOrderSVD():
             recon = self._mode_mul(recon, self.U[i], mode=i)
         return np.allclose(self.tensor, recon)
 
+    @nb.jit
+    def _frob_norm(self, tensor):
+        """Computed the frobenius norm of a tensor using numpy
+
+        Parameters
+        ----------
+        tensor : tl.tensor or ndarray
+        """
+        return(np.sqrt(np.sum(np.square(tensor))))
+
 #######################
 #      Functions      #
 #######################
@@ -147,11 +157,11 @@ class HighOrderSVD():
         if self.U_truncated == []:
             raise NotInitializedError(
                 "The tucker was not initialized, please run tucker_decomposition")
-        res = self.TC
+        recon_ten = self.TC
         for i in range(len(self.tensor.shape)):
-            res = self._mode_mul(res, self.U_truncated[i], mode=i)
-        delta = tl.unfold(res - self.tensor, 0)
-        error = np.linalg.norm(delta, "fro")
+            recon_ten = self._mode_mul(recon_ten, self.U_truncated[i], mode=i)
+        delta = recon_ten - self.tensor
+        error = self._frob_norm(delta)
         return error
 
 
