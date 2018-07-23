@@ -1,0 +1,3 @@
+numpy==1.13.3
+numba==0.38.1
+tensorly==0.4.2
