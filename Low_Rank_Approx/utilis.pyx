@@ -42,7 +42,9 @@ cpdef double[:, :, :] get_B_two(int N):
                     c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
     return B2
 
-cpdef double frobenius_norm(double[:, :, :] tensor):
+
+@cython.boundscheck(False)
+cpdef double frobenius_norm(double[:, :, :] tensor, int N):
     """Computed the frobenius norm of a tensor or matrix
 
     Parameters
@@ -51,11 +53,11 @@ cpdef double frobenius_norm(double[:, :, :] tensor):
     """
     cdef int i, j, z
     cdef double frob_norm = 0
-
-    for i in range(N):  # noloop, as double is not atomic
+    for i in prange(N, nogil=True):
         for j in range(N):
             for z in range(N):
-                frob_norm = frob_norm + tensor[i, j, z] * tensor[i, j, z]
+                frob_norm += tensor[i, j, z] * \
+                    tensor[i, j, z]  # uses openmp reduce +
     frob_norm = sqrt(frob_norm)
 
     return(frob_norm)
@@ -83,22 +85,37 @@ def mode_n_multiplication(tensor, matrix, mode=0):
 #######################
 #    HOSVD Utilis     #
 #######################
+@cython.boundscheck(False)
+cpdef int find_ranks(double[:, :] sigma, double error):
+    cdef double sq_err_per_rank = error * error
+    # start with a relative error higher than target to make the loop start
+    cdef double est_error = 0
+    cdef int i = 0
+    while (i == 0 or est_error < sq_err_per_rank):
+        for j in range(3):
+            est_error += sigma[j, i] * sigma[j, i]
+        i += 1
+    return i
 
 
-def compute_core(tensor, ranks=None, max_rel_error=1e-4:
+def compute_core(tensor, ranks=None, max_rel_error=1e-4):
+    """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
+       If ranks are given, the tucker decomposition with the given ranks is calculated.
+       Otherwise the maximum relative error is taken as measurement
+
+    Parameters
+    ----------
+    tensor : tl.tensor or ndarray
+    """
     if len(tensor.shape) != 3:
         raise ValueError("Please enter a 3 - tensor")
-    U, sig=calculate_SVD(tensor)
+    U, sig = calculate_SVD(tensor)
     if ranks is None:
-        # Compute the ranks that result in a bounded error as required
-        max_error = max_rel_error * frobenius_norm(tensor)
-        max_error_square = max_error ** 2
-        # Vectorized computation using some numpy functionality
-        sng_vals = np.stack(Sigma_list)
-        sng_vals_cumsum = np.cumsum(sng_vals[:, ::-1], axis=1)
-        ranks = np.sum(
-            (np.cumsum(sng_vals[:, ::-1], axis=1) > max_error_square / 3),
-            axis=1)
+        max_error = max_rel_error * frobenius_norm(tensor, tensor.shape[0])
+        opt_rank = tensor.shape[0] - \
+            find_ranks(np.stack(sig)[:, ::-1], max_error) + 1
+        print opt_rank
+        ranks = np.repeat(opt_rank, 3)
         print(f'Resulting ranks: {ranks}')
 
     else:
@@ -112,27 +129,26 @@ def compute_core(tensor, ranks=None, max_rel_error=1e-4:
 
 
 def calculate_SVD(tensor):
-    """Computed the core tensor of a given tensor and all orthogonal matrices s.t. A=Sx_1U_1.Tx_2U_2.Tx_3U_3.T
-       If ranks are given, the tucker decomposition with the given ranks is calculated
+    """Computed the HOSVD of a tensor. For this the 3 tensor is unfolded to 3 matrices
+    and the regular SVD of these is calculated.
 
     Parameters
     ----------
     tensor : tl.tensor or ndarray
     """
-    # Calculate SVD for all mode matricitations and also save economic
     if len(tensor.shape) != 3:
         raise ValueError("Please enter a 3 - tensor")
     U = []
     SIGMA = []
     for (i, size) in enumerate(tensor.shape):
-        U_tmp, SIGMA_tmo, V=np.linalg.svd(tl.unfold(
+        U_tmp, SIGMA_tmo, V = np.linalg.svd(tl.unfold(
             tensor, mode=i), full_matrices=False)
         U.append(U_tmp)
         SIGMA.append(SIGMA_tmo)
     return(U, SIGMA)
 
 
-def reconstruct_tensor(U, core, origin=None):
+def reconstruct_tensor(U, core, origin):
     """ Reconstruct tensor using the tucker decomposition.
     Print the absolute and relative error. Return the reconstructed tensor
     """
@@ -141,8 +157,7 @@ def reconstruct_tensor(U, core, origin=None):
     recon_tensor = core
     for i in range(len(core.shape)):
         recon_tensor = mode_n_multiplication(recon_tensor, U[i], mode=i)
-    if not origin:
-        delta = recon_tensor - origin
-        error = frobenius_norm(delta)
-        print(f"The absolute error between the reconstructed and the real tensor is {error}. The relative error ist: {error/frobenius_norm(origin)}")
+    delta = recon_tensor - origin
+    error = frobenius_norm(delta, delta.shape[0])
+    print(f"The absolute error between the reconstructed and the real tensor is {error}. The relative error is: {error/frobenius_norm(origin, origin.shape[0])}")
     return recon_tensor
