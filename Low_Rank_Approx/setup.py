@@ -12,6 +12,8 @@ ext_modules = [
 ]
 
 setup(
-    name='fast_tools',
+    name='Low_rank_approximation_project',
+    version='0.5',
+    description='Hosvd with python',
     ext_modules=cythonize(ext_modules),
 )

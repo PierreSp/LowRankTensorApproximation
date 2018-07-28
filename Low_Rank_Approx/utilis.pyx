@@ -161,3 +161,20 @@ def reconstruct_tensor(U, core, origin):
     error = frobenius_norm(delta, delta.shape[0])
     print(f"The absolute error between the reconstructed and the real tensor is {error}. The relative error is: {error/frobenius_norm(origin, origin.shape[0])}")
     return recon_tensor
+
+def plot_singular_values(sigmas):
+    m = 1
+    for matrix in sigmas:
+        plt.semilogy(
+            range(len(Sigma)), Sigma, '.-',
+            color='#005293')
+        plt.title(
+            f'{name} - singular values of {m}-mode matricization')
+        try:
+            plt.savefig(
+                f'plots/{name}_{m}-mode-matricization_singular-values.png')
+        except FileNotFoundError:
+            print('Could not save plot as the directory ./plots/ ' +
+                  'does not exist')
+        plt.gcf().clear()
+        m = m+1
