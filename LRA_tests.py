@@ -80,7 +80,7 @@ def test_generator_B1():
     for i in range(N):
         for j in range(N):
             for z in range(N):
-                gen_tensor[i, j, z] = utilis.b1(i, j, z, N)
+                gen_tensor[i, j, z] = utilis.b1().evaluate(i, j, z, N)
     assert(np.allclose(tensor, gen_tensor))
 
 
@@ -92,7 +92,7 @@ def test_generator_B2():
     for i in range(N):
         for j in range(N):
             for z in range(N):
-                gen_tensor[i, j, z] = utilis.b2(i, j, z, N)
+                gen_tensor[i, j, z] = utilis.b2().evaluate(i, j, z, N)
     assert(np.allclose(tensor, gen_tensor))
 
 ##########################

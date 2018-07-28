@@ -11,7 +11,7 @@ cdef extern from "math.h" nogil:
 
 @cython.cdivision(True)  # Modulo is checking for 0 div, no need
 @cython.boundscheck(False)
-cdef double c_tsi(int x, int N) nogil:
+cdef double c_tsi(double x, int N) nogil:
     cdef double val = x / (N + 1)
     return(val)
 
@@ -43,23 +43,6 @@ cpdef double[:, :, :] get_B_two(int N):
     return B2
 
 
-# Functions to calculate value of B1, B2 (for partial pivoting)
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef double b1(int i, int j, int z, int N) nogil:
-    cdef double result
-    result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
-    return result
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef double b2(int i, int j, int z, int N) nogil:
-    cdef double result
-    result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
-    return result
-
-
 @cython.boundscheck(False)
 cpdef double frobenius_norm_tensor(double[:, :, :] tensor):
     """Computed the frobenius norm of a tensor
@@ -76,8 +59,7 @@ cpdef double frobenius_norm_tensor(double[:, :, :] tensor):
     for i in prange(I_dim, nogil=True):
         for j in range(J_dim):
             for z in range(Z_dim):
-                frob_norm += tensor[i, j, z] * \
-                    tensor[i, j, z]  # uses openmp reduce +
+                frob_norm += tensor[i, j, z] * tensor[i, j, z]
     frob_norm = sqrt(frob_norm)
     return(frob_norm)
 
@@ -97,8 +79,7 @@ cpdef double frobenius_norm_mat(double[:, :] o_matrix):
     cdef double frob_norm = 0
     for i in prange(I_dim, nogil=True):
         for j in range(J_dim):
-            frob_norm += o_matrix[i, j] * \
-                o_matrix[i, j]  # uses openmp reduce +
+            frob_norm += o_matrix[i, j] * o_matrix[i, j]
     frob_norm = sqrt(frob_norm)
     return(frob_norm)
 
@@ -154,7 +135,6 @@ def compute_core(tensor, ranks=None, max_rel_error=1e-4):
         max_error = max_rel_error * frobenius_norm_tensor(tensor)
         opt_rank = tensor.shape[0] - \
             find_ranks(np.stack(sig)[:, ::-1], max_error) + 1
-        print opt_rank
         ranks = np.repeat(opt_rank, 3)
         print(f'Resulting ranks: {ranks}')
 
@@ -199,7 +179,8 @@ def reconstruct_tensor(U, core, origin):
         recon_tensor = mode_n_multiplication(recon_tensor, U[i], mode=i)
     delta = recon_tensor - origin
     error = frobenius_norm_tensor(delta)
-    print(f"The absolute error between the reconstructed and the real tensor is {error}. The relative error is: {error/frobenius_norm_tensor(origin)}")
+    rel_error = error / np.max([10e-16, frobenius_norm_tensor(origin)])
+    print(f"The absolute error between the reconstructed and the real tensor is {error}. The relative error is: {rel_error}")
     return recon_tensor
 
 #######################
@@ -236,3 +217,58 @@ cpdef aca_full_pivoting(o_matrix, double max_error):
     C = o_matrix[:, j_set]
 
     return C, U, R
+
+cdef class Function:
+    cpdef double evaluate(self, int i, int j, int z, int N) except *:
+        return 0
+
+# Functions to calculate value of B1, B2 (for partial pivoting)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef class b1(Function):
+    cpdef double evaluate(self, int i, int j, int z, int N):
+            cdef double result
+            result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
+            return result
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef class b2(Function):
+    cpdef double evaluate(self, int i, int j, int z, int N):
+            cdef double result
+            result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
+            return result
+
+
+# @cython.cdivision(True)
+# @cython.boundscheck(False)
+# @cython.nonecheck(False)
+# cpdef aca_partial_pivoting(, double max_error):
+#     """ACA with full pivoting 
+#     Computes CUR decomposition from matrix and my error
+#     """
+#     cdef int i, j
+#     cdef double delta
+#     cdef double[:] u, v
+#     Rk = o_matrix.copy()  # set R_0
+#     i_set = []
+#     j_set = []
+#     double max_err = max_error * max_error * frobenius_norm_mat(o_matrix)
+
+#     while frobenius_norm_mat(Rk) > max_err:
+#         i, j = np.unravel_index(
+#             np.argmax(np.abs(np.asarray(Rk).ravel())), Rk.shape)
+#         i_set.append(i)
+#         j_set.append(j)
+#         delta = Rk[i, j]
+#         if np.isclose(delta, 0):
+#             break
+#         u = Rk[:, j]
+#         v = np.divide(Rk[i, :].T, delta)
+#         Rk = Rk - np.outer(u, v)
+#     R = o_matrix[i_set, :]
+#     U = np.linalg.inv(o_matrix[i_set, :][:, j_set])
+#     C = o_matrix[:, j_set]
+
+#     return C, U, R
