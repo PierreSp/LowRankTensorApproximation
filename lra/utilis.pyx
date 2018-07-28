@@ -46,7 +46,7 @@ cpdef double[:, :, :] get_B_two(int N):
 # Functions to calculate value of B1, B2 (for partial pivoting)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double f1(int i, int j, int z, int N) nogil:
+cpdef double b1(int i, int j, int z, int N) nogil:
     cdef double result
     result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
     return result
@@ -54,7 +54,7 @@ cdef double f1(int i, int j, int z, int N) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double f2(int i, int j, int z, int N) nogil:
+cpdef double b2(int i, int j, int z, int N) nogil:
     cdef double result
     result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
     return result
