@@ -80,7 +80,7 @@ def test_generator_B1():
     for i in range(N):
         for j in range(N):
             for z in range(N):
-                gen_tensor[i, j, z] = utilis.b1().evaluate(i, j, z, N)
+                gen_tensor[i, j, z] = utilis.b1(i, j, z, N)
     assert(np.allclose(tensor, gen_tensor))
 
 
@@ -92,7 +92,7 @@ def test_generator_B2():
     for i in range(N):
         for j in range(N):
             for z in range(N):
-                gen_tensor[i, j, z] = utilis.b2().evaluate(i, j, z, N)
+                gen_tensor[i, j, z] = utilis.b2(i, j, z, N)
     assert(np.allclose(tensor, gen_tensor))
 
 
@@ -102,8 +102,8 @@ def test_fun_matriziation_b1():
     for mode in range(3):
         tensor = np.asarray(utilis.get_B_one(N))
         unfold_mat = tl.unfold(tensor, mode)
-        functional_generator = utilis.test_matriziation(
-            utilis.b1(), N, N, N, mode)
+        functional_generator = utilis.mode_m_matricization_fun(
+            utilis.b1, N, N, N, mode)
         gen_mat = np.zeros((N, N * N))
         for i in range(N):
             for j in range(N * N):
@@ -117,8 +117,8 @@ def test_fun_matriziation_b2():
     for mode in range(3):
         tensor = np.asarray(utilis.get_B_two(N))
         unfold_mat = tl.unfold(tensor, mode)
-        functional_generator = utilis.test_matriziation(
-            utilis.b2(), N, N, N, mode)
+        functional_generator = utilis.mode_m_matricization_fun(
+            utilis.b2, N, N, N, mode)
         gen_mat = np.zeros((N, N * N))
         for i in range(N):
             for j in range(N * N):
@@ -126,22 +126,42 @@ def test_fun_matriziation_b2():
         assert(np.allclose(unfold_mat, gen_mat))
 
 
-def test_aca_part():
+def test_aca_part_b2():
     N = 100
-    mode = 0
+    mode = 0  # 24558
     tensor = np.asarray(utilis.get_B_two(N))
     test_mat = tl.unfold(tensor, mode)
-    C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
-    recon_full = np.dot(C, np.dot(U, R))
-    del(C, U, R)
+    # C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
+    # recon_full = np.dot(C, np.dot(U, R))
+    # del(C, U, R)
 
-    functional_generator = utilis.test_matriziation(
-        utilis.b2(), N, N, N, mode)
+    functional_generator = utilis.mode_m_matricization_fun(
+        utilis.b2, N, N, N, mode)
     C, U, R = utilis.aca_partial_pivoting(
         functional_generator, N, N * N, N, 10e-10)
     recon_part = np.dot(C, np.dot(U, R))
+    error = utilis.frobenius_norm_mat(
+        recon_part - test_mat) / utilis.frobenius_norm_mat(test_mat)
+    assert(error < 10e-10)
 
-    assert(np.allclose(recon_full, recon_part))
+
+def test_aca_part_b1():
+    N = 100
+    mode = 0  # 24558
+    tensor = np.asarray(utilis.get_B_one(N))
+    test_mat = tl.unfold(tensor, mode)
+    # C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
+    # recon_full = np.dot(C, np.dot(U, R))
+    # del(C, U, R)
+
+    functional_generator = utilis.mode_m_matricization_fun(
+        utilis.b1, N, N, N, mode)
+    C, U, R = utilis.aca_partial_pivoting(
+        functional_generator, N, N * N, N, 10e-10)
+    recon_part = np.dot(C, np.dot(U, R))
+    error = utilis.frobenius_norm_mat(
+        recon_part - test_mat) / utilis.frobenius_norm_mat(test_mat)
+    assert(error < 10e-10)
 
 
 ##########################
@@ -189,3 +209,13 @@ def test_speed_gen_B2(benchmark):
     # Benchmark speed for N=200 for decomposition without reconstruction
     N = 100
     benchmark(utilis.get_B_one, N)
+
+
+@pytest.mark.slow
+def test_speed_aca_part_b1(benchmark):
+    N = 100
+    mode = 0  # 24558
+    functional_generator = utilis.mode_m_matricization_fun(
+        utilis.b1, N, N, N, mode)
+    C, U, R = utilis.aca_partial_pivoting(
+        functional_generator, N, N * N, N, 10e-10)
