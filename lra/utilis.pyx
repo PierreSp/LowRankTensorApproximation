@@ -1,3 +1,4 @@
+# distutils: language = c++
 import numpy as np
 import tensorly as tl
 cimport cython
@@ -7,6 +8,8 @@ from libc.math cimport sin
 
 cdef extern from "math.h" nogil:
     double sqrt(double m)
+
+from libcpp.set cimport set
 
 
 @cython.cdivision(True)  # Modulo is checking for 0 div, no need
@@ -46,10 +49,6 @@ cpdef double[:, :, :] get_B_two(int N):
 @cython.boundscheck(False)
 cpdef double frobenius_norm_tensor(double[:, :, :] tensor):
     """Computed the frobenius norm of a tensor
-
-    Parameters
-    ----------
-    tensor : tl.tensor or ndarray
     """
     cdef int i, j, z, I_dim, J_dim, Z_dim
     I_dim = tensor.shape[0]
@@ -67,10 +66,6 @@ cpdef double frobenius_norm_tensor(double[:, :, :] tensor):
 @cython.boundscheck(False)
 cpdef double frobenius_norm_mat(double[:, :] o_matrix):
     """Computed the frobenius norm of a matrix
-
-    Parameters
-    ----------
-    o_matrix : ndarray
     """
 
     cdef int i, j, I_dim, J_dim
@@ -186,12 +181,13 @@ def reconstruct_tensor(U, core, origin):
 #######################
 #      ACA Utilis     #
 #######################
+from libc.math cimport fabs
 
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
 cpdef aca_full_pivoting(o_matrix, double max_error):
-    """ACA with full pivoting 
+    """ACA with full pivoting
     Computes CUR decomposition from matrix and my error
     """
     cdef int i, j
@@ -207,68 +203,200 @@ cpdef aca_full_pivoting(o_matrix, double max_error):
         i_set.append(i)
         j_set.append(j)
         delta = Rk[i, j]
-        if np.isclose(delta, 0):
-            break
         u = Rk[:, j]
         v = np.divide(Rk[i, :].T, delta)
         Rk = Rk - np.outer(u, v)
     R = o_matrix[i_set, :]
     U = np.linalg.inv(o_matrix[i_set, :][:, j_set])
     C = o_matrix[:, j_set]
+    print(i_set)
+    print(j_set)
 
     return C, U, R
+
 
 cdef class Function:
     cpdef double evaluate(self, int i, int j, int z, int N) except *:
         return 0
 
 # Functions to calculate value of B1, B2 (for partial pivoting)
-@cython.boundscheck(False)
-@cython.wraparound(False)
+
+
+# @cython.boundscheck(False)
+# @cython.wraparound(False)
+# cpdef double b1(int i, int j, int z, int N):
+#     cdef double result
+#     result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
+#     return result
+
+
+# @cython.boundscheck(False)
+# @cython.wraparound(False)
+# cpdef double b2(int i, int j, int z, int N):
+#     cdef double result
+#     result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
+#     return result
+
 cdef class b1(Function):
+    # These wrappers are needed to make sure, that the functions are evaluated
+    # in C
+
     cpdef double evaluate(self, int i, int j, int z, int N):
-            cdef double result
-            result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
-            return result
+        cdef double result
+        result = sin(c_tsi(i, N) + c_tsi(j, N) + c_tsi(z, N))
+        return result
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
 cdef class b2(Function):
     cpdef double evaluate(self, int i, int j, int z, int N):
-            cdef double result
-            result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
-            return result
+        cdef double result
+        result = sqrt(c_tsi(i, N)**2 + c_tsi(j, N)**2 + c_tsi(z, N)**2)
+        return result
 
 
-# @cython.cdivision(True)
-# @cython.boundscheck(False)
-# @cython.nonecheck(False)
-# cpdef aca_partial_pivoting(, double max_error):
-#     """ACA with full pivoting 
-#     Computes CUR decomposition from matrix and my error
-#     """
-#     cdef int i, j
-#     cdef double delta
-#     cdef double[:] u, v
-#     Rk = o_matrix.copy()  # set R_0
-#     i_set = []
-#     j_set = []
-#     double max_err = max_error * max_error * frobenius_norm_mat(o_matrix)
+cdef mode_m_matricization_fun(Function f, int d1, int d2, int d3, int m):
+    def matricized_f(i, j, N):
+        if m == 0:
+            i1, i2, i3 = i, j % d2, j // d2
+        elif m == 1:
+            i1, i2, i3 = j % d1, i, j // d1
+        elif m == 2:
+            i1, i2, i3 = j % d2, j // d2, i
+        return f.evaluate(i1, i2, i3, N)
+    return matricized_f
 
-#     while frobenius_norm_mat(Rk) > max_err:
-#         i, j = np.unravel_index(
-#             np.argmax(np.abs(np.asarray(Rk).ravel())), Rk.shape)
-#         i_set.append(i)
-#         j_set.append(j)
-#         delta = Rk[i, j]
-#         if np.isclose(delta, 0):
-#             break
-#         u = Rk[:, j]
-#         v = np.divide(Rk[i, :].T, delta)
-#         Rk = Rk - np.outer(u, v)
-#     R = o_matrix[i_set, :]
-#     U = np.linalg.inv(o_matrix[i_set, :][:, j_set])
-#     C = o_matrix[:, j_set]
 
-#     return C, U, R
+cdef closure_fk(fk, double[:] u, double[:] v, int N):
+    # Closure for the function. Update f without knowing it
+    def fk_kk(i, j, N):
+        return fk(i, j, N) - u[i] * v[j]
+    return fk_kk
+
+
+cpdef test_matriziation(f, d1, d2, d3, m):
+    # python handler for the functional matriciation
+    # Used just for testing
+    mode_m_fun = mode_m_matricization_fun(f, d1, d2, d3, m)
+    return mode_m_fun
+
+
+cdef double mem_view_dot(double[:] vec, int N):
+    cdef double result = 0
+    for i in range(N):
+        result += vec[i] * vec[i]
+    return result
+
+cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
+    """ACA with partial pivoting
+    Computes CUR decomposition from matrix and my error
+
+    Parameters
+    ----------
+    f : functional matrizied tensor
+    n : matrix shape[0]
+    m : inmatrix shape[1]
+    N : tensor dimenson
+    max error : max "relative" error
+    """
+
+    cdef int i, j, k, i_counter, size_i, size_j
+    cdef double delta, est_norm_Rk
+    cdef double[:] u, v
+    # cdef set[int] i_used = set[int](n/10)
+    # cdef set[int] j_used = set[int](m/10)
+    i_used = []
+    j_used = []
+    i_not_used = [x for x in range(m)]
+    j_not_used = [x for x in range(n)]
+    size_i = len(i_not_used)
+    size_j = len(j_not_used)
+    u_list = []
+    v_list = []
+    i = 1  # starting row
+    i_counter = 1
+    est_norm_Rk = 0
+    fk = f
+
+    while i_counter == 1 or mem_view_dot(u, m) * mem_view_dot(v, n) > max_error * max_error * est_norm_Rk:
+        if size_j == 5 or size_i == 5:
+            print("finished set")
+            print(j_used)
+            print(i_used)
+            break
+        j = max_value_col(fk, i, np.array(j_not_used, dtype=np.int), N, size_j)
+        delta = fk(i, j, N)
+        if np.isclose(delta, 0):
+            if i_counter == np.min((n, m)):  # No -1 as i_counter = 1, not 0
+                break
+        else:
+            u = get_u(fk, m, j, N)
+            v = get_v(fk, i, n, delta, N)
+            v_list.append(v)
+            u_list.append(u)
+            fk = closure_fk(fk, u, v, N)
+            i_counter += 1
+            # est_norm_Rk += (mem_view_dot(u, m) * mem_view_dot(v, n) +
+            #                 np.sum([np.asarray(u).T.dot(np.asarray(u_list[l])) * (np.asarray(v_list[l]).T).dot(np.asarray(v))
+            #                         for l in range(0, i_counter - 1)]))
+            i_used.append(i)
+            j_used.append(j)
+
+        try:
+            i_not_used.remove(i)
+            size_i -= 1
+        except Exception as ex:
+            pass
+        try:
+            j_not_used.remove(j)
+            size_j -= 1
+        except Exception as ex:
+            pass
+        i = max_value_row(fk, np.array(i_not_used, dtype=np.int), j, N, size_i)
+    print("done")
+    # R = np.array([[f(i, j, N) for j in range(n)] for i in i_used])
+    # U = np.linalg.inv(np.array([[f(i, j, N) for j in j_used] for i in i_used]))
+    # C = np.array([[f(i, j, N) for j in j_used] for i in range(m)])
+    return 0
+
+
+cdef double[:] get_u(f, int m, int j, int N):
+    # returns u vector from b1 or b2
+    cdef double[:] u = np.zeros(m)
+    cdef int i
+    for i in range(m):
+        u[i] = f(i, j, N)
+    return u
+
+cdef double[:] get_v(f, int i, int m, double delta, int N):
+    # returns v vector from b1 or b2
+    cdef double[:] v = np.zeros(m)
+    cdef int j
+    for j in range(m):
+        v[j] = f(i, j, N) / delta
+    return v
+
+
+cdef int max_value_col(f, int i, long[:] columns, int N, int size_col):
+    # Calculate maximum value in a row from b1 or b2
+    cdef int bestcol, j
+    cdef double currval
+    cdef double bestval = -1
+    bestcol = -1
+    for j in range(size_col):
+        currval = fabs(f(i, columns[j], N))
+        if bestval < currval:
+            bestcol = j
+    return bestcol
+
+
+cdef int max_value_row(f, long[:] rows, int j, int N, int size_row):
+    # Calculate maximum value in a row from b1 or b2
+    cdef int bestrow, i
+    cdef double currval
+    cdef double bestval = -1
+    bestrow = -1
+    for i in range(size_row):
+        currval = fabs(f(rows[i], j, N))
+        if bestval < currval:
+            bestrow = i
+    return bestrow

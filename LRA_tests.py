@@ -95,6 +95,55 @@ def test_generator_B2():
                 gen_tensor[i, j, z] = utilis.b2().evaluate(i, j, z, N)
     assert(np.allclose(tensor, gen_tensor))
 
+
+def test_fun_matriziation_b1():
+    # check whether functional matrizitation is identical with original one
+    N = 100
+    for mode in range(3):
+        tensor = np.asarray(utilis.get_B_one(N))
+        unfold_mat = tl.unfold(tensor, mode)
+        functional_generator = utilis.test_matriziation(
+            utilis.b1(), N, N, N, mode)
+        gen_mat = np.zeros((N, N * N))
+        for i in range(N):
+            for j in range(N * N):
+                gen_mat[i, j] = functional_generator(i, j, N)
+        assert(np.allclose(unfold_mat, gen_mat))
+
+
+def test_fun_matriziation_b2():
+    # check whether functional matrizitation is identical with original one
+    N = 100
+    for mode in range(3):
+        tensor = np.asarray(utilis.get_B_two(N))
+        unfold_mat = tl.unfold(tensor, mode)
+        functional_generator = utilis.test_matriziation(
+            utilis.b2(), N, N, N, mode)
+        gen_mat = np.zeros((N, N * N))
+        for i in range(N):
+            for j in range(N * N):
+                gen_mat[i, j] = functional_generator(i, j, N)
+        assert(np.allclose(unfold_mat, gen_mat))
+
+
+def test_aca_part():
+    N = 100
+    mode = 0
+    tensor = np.asarray(utilis.get_B_two(N))
+    test_mat = tl.unfold(tensor, mode)
+    C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
+    recon_full = np.dot(C, np.dot(U, R))
+    del(C, U, R)
+
+    functional_generator = utilis.test_matriziation(
+        utilis.b2(), N, N, N, mode)
+    C, U, R = utilis.aca_partial_pivoting(
+        functional_generator, N, N * N, N, 10e-10)
+    recon_part = np.dot(C, np.dot(U, R))
+
+    assert(np.allclose(recon_full, recon_part))
+
+
 ##########################
 #      Benchmarking      #
 ##########################
