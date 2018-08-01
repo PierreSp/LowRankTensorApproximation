@@ -193,15 +193,6 @@ def test_speed_gen_B2_N200(benchmark):
     benchmark(utilis.get_B_one, N)
 
 
-# @pytest.mark.slow
-# def test_speed_aca_part_b1_N200(benchmark):
-#     N = 200
-#     mode = 0  # 24558
-#     functional_generator = aca_fun.mode_m_matricization_fun(
-#         aca_fun.b1, N, N, N)
-#     C, U, R = aca_fun.aca_partial_pivoting(
-#         functional_generator, N, N * N, N, 10e-10)
-
 @pytest.mark.slow
 def test_speed_aca_full_b1_N200(benchmark):
     # Benchmark first mode 1 aca for B1
@@ -246,6 +237,7 @@ def test_speed_aca_full_b2_N200(benchmark):
             C_list.append(C)
     benchmark(run_aca_full)
 
+
 @pytest.mark.slow
 def test_speed_aca_part_b1_N200(benchmark):
     # Benchmark first mode 1 aca for B1
@@ -258,10 +250,10 @@ def test_speed_aca_part_b1_N200(benchmark):
                 functional_generator = aca_fun.mode_m_matricization_fun(
                     aca_fun.b1, N, N, N)
                 C, U, R = aca_fun.aca_partial_pivoting(
-                    functional_generator, N, N * N, N, 10e-5/3)
+                    functional_generator, N, N * N, N, 10e-5 / 3)
             else:
                 Core_mat = tl.unfold(Core_ten, mode)
-                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5/3)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5 / 3)
             ranks[mode] = U.shape[0]
             Core_ten = tl.fold(np.dot(U, R), mode, ranks)
             C_list.append(C)
@@ -280,10 +272,10 @@ def test_speed_aca_part_b1_N200(benchmark):
                 functional_generator = aca_fun.mode_m_matricization_fun(
                     aca_fun.b2, N, N, N)
                 C, U, R = aca_fun.aca_partial_pivoting(
-                    functional_generator, N, N * N, N, 10e-5/3)
+                    functional_generator, N, N * N, N, 10e-5 / 3)
             else:
                 Core_mat = tl.unfold(Core_ten, mode)
-                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5/3)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5 / 3)
             ranks[mode] = U.shape[0]
             Core_ten = tl.fold(np.dot(U, R), mode, ranks)
             C_list.append(C)
