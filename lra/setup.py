@@ -8,6 +8,12 @@ ext_modules = [
         ["utilis.pyx"],
         extra_compile_args=['-fopenmp', '-O3'],
         extra_link_args=['-fopenmp'],
+    ),
+    Extension(
+        "aca",
+        ["aca.pyx"],
+        extra_compile_args=['-fopenmp', '-O3'],
+        extra_link_args=['-fopenmp'],
     )
 ]
 

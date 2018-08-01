@@ -3,9 +3,9 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 
-# parser to run homework from terminal
+# parser to provide parameters from terminal
 parser = argparse.ArgumentParser(
-    description='Calculate HOSVD and tucker decomposition for the LRA homework.')
+    description='Calculate HOSVD and tucker decomposition for task1.')
 parser.add_argument('dimension', type=int, default=200,
                     help='Dimension for the tensor')
 parser.add_argument(
@@ -25,21 +25,21 @@ def plot_singular_values(tensor):
         plt.semilogy(
             range(len(matrix)), matrix, '.')
         plt.title(
-            f'Singular values of {m}-mode matricization')
+            f'Singular values of {m + 1}-mode matricization')
         plt.show()
         plt.close()
         m += 1
 
-
 # Runscript
 if __name__ == "__main__":
     N = args.dimension
-    print(f"Number of dimension: {N}")
+    print(f"Number of elements per dimension: {N}")
 
     # HOSVD of B1
-    print(f"Calculation rhs B with sin")
+    print(f"Calculation of B1")
     tensor = np.asarray(utilis.get_B_one(N))
     print(f"Calculated B1")
+    print(f"Calculation HOSVD with maximal relative error of {args.acc}")
     Core, U = utilis.compute_core(tensor, max_rel_error=args.acc)
     utilis.reconstruct_tensor(U, Core, tensor)
     if args.plot:
@@ -48,9 +48,10 @@ if __name__ == "__main__":
     del(Core, U, tensor)
 
     # HOSVD of B2
-    print(f"Calculation rhs B with L2")
+    print(f"Calculation of B2")
     tensor = np.asarray(utilis.get_B_two(N))
     print(f"Calculated B2")
+    print(f"Calculation HOSVD with maximal relative error of {args.acc}")
     Core, U = utilis.compute_core(tensor, max_rel_error=args.acc)
     utilis.reconstruct_tensor(U, Core, tensor)
     if args.plot:
