@@ -36,7 +36,7 @@ if __name__ == "__main__":
     print(f"Number of elements per dimension: {N}")
 
     # HOSVD of B1
-    print(f"Calculation with B1")
+    print(f"\nCalculation with B1")
     tensor = np.asarray(utilis.get_B_one(N))
     print(f"Calculation HOSVD with maximal relative error of {args.acc}")
     Core, U = utilis.compute_core(tensor, max_rel_error=args.acc)
@@ -47,12 +47,12 @@ if __name__ == "__main__":
     del(Core, U, tensor)
 
     # HOSVD of B2
-    print(f"Calculation with B2")
+    print(f"\nCalculation with B2")
     tensor = np.asarray(utilis.get_B_two(N))
     print(f"Calculation HOSVD with maximal relative error of {args.acc}")
     Core, U = utilis.compute_core(tensor, max_rel_error=args.acc)
     utilis.reconstruct_tensor(U, Core, tensor)
     if args.plot:
-        print("Plotting singular values for B1")
+        print("Plotting singular values for B2")
         plot_singular_values(tensor)
     del(Core, U, tensor)
