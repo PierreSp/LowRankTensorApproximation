@@ -49,11 +49,19 @@ def closure_fk(fk, u, v):
         return fk(i, j, N) - u[i] * v[j]
     return fk_kk
 
-cdef double mem_view_dot(double[:] vec, int N):
+cdef double mem_view_norm_sq(double[:] vec, int N):
     # own c function for a dot product
     cdef double result = 0
     for i in range(N):
         result += vec[i] * vec[i]
+    return result
+
+
+cdef double mem_view_scalar_prod(double[:] vec_one, double[:] vec_two, int N):
+    # own c function for a dot product
+    cdef double result = 0
+    for i in range(N):
+        result += vec_one[i] * vec_two[i]
     return result
 
 
@@ -162,27 +170,29 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
     fk = f
     i = arg_max_row(fk, np.array(i_not_used, dtype=np.int), 0, N, size_i)
 
-    while elem_counter == 1 or mem_view_dot(u, m) * mem_view_dot(v, n) > max_error * max_error * est_norm_Rk:
+    while elem_counter == 1 or mem_view_norm_sq(u, m) * mem_view_norm_sq(v, n) > max_error * max_error * est_norm_Rk:
         j = arg_max_col(fk, i, np.array(j_not_used, dtype=np.int), N, size_j)
+        # fk represents current matrix, after elem_counter rank 1 updates
         delta = fk(i, j, N)
         if np.isclose(delta, 0):
             if np.min([size_i, size_j]) == 1:
                 print("break occured")
                 break
         else:
-            u = get_u(fk, m, j, N)
-            v = get_v(fk, i, n, delta, N)
+            u = get_u(fk, m, j, N)  # gets row vector of fk
+            v = get_v(fk, i, n, delta, N)  # gets column vector of fk
             v = np.asarray(v)
             u = np.asarray(u)
             all_v.append(v)
             all_u.append(u)
-            fk = closure_fk(fk, u, v)
+            fk = closure_fk(fk, u, v)  # do rank 1 update
             elem_counter += 1
             added_u_v = 0
             for p in range(elem_counter - 1):
-                added_u_v += np.asarray(u).T.dot(np.asarray(all_u[p])) * (np.asarray(all_v[p]).T).dot(np.asarray(v))
-            est_norm_Rk += mem_view_dot(u, m) * \
-                mem_view_dot(v, n) + 2 * added_u_v
+                added_u_v += mem_view_scalar_prod(
+                    u, all_u[p], m) * mem_view_scalar_prod(all_v[p], v, n)
+            est_norm_Rk += mem_view_norm_sq(u, m) * \
+                mem_view_norm_sq(v, n) + 2 * added_u_v
             i_used.append(i)
             j_used.append(j)
         try:
@@ -196,7 +206,6 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
             print(j)
         size_j -= 1
         i = arg_max_row(fk, np.array(i_not_used, dtype=np.int), j, N, size_i)
-
 
     R = np.array([[f(i, j, N) for j in range(n)] for i in i_used])
     U = np.linalg.inv(np.array([[f(i, j, N) for j in j_used] for i in i_used]))

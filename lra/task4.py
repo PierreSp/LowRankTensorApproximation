@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 C_list.append(C)
 
             utilis.reconstruct_tensor(C_list, Core_ten, tensor)
-            print(f"Time needed: {timer - time.time()}")
+            print(f"Time needed: {time.time() - timer}")
     else:
         for obj in ["B1", "B2"]:
             timer = time.time()
