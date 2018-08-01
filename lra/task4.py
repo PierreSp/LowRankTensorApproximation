@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import tensorly as tl
 import aca as aca_fun
+import time
 
 # parser to provide parameters from terminal
 parser = argparse.ArgumentParser(
@@ -24,9 +25,11 @@ if __name__ == "__main__":
     print(f"Number of elements per dimension: {N}")
     print(f"Demanded error is: {args.acc}")
 
+
     if args.full:
         # Calculate full ACA
         for obj in ["B1", "B2"]:
+            timer = time.time()
             C_list = []
             ranks = np.array([N, N, N])
             print(f"    Working on {obj} ")
@@ -48,9 +51,10 @@ if __name__ == "__main__":
                 C_list.append(C)
 
             utilis.reconstruct_tensor(C_list, Core_ten, tensor)
+            print(f"Time needed: {timer - time.time()}")
     else:
-
         for obj in ["B1", "B2"]:
+            timer = time.time()
             print(f"    Working on {obj} ")
             C_list = []
             ranks = np.array([N, N, N])
@@ -79,5 +83,4 @@ if __name__ == "__main__":
 
 
             recon=utilis.reconstruct_tensor(C_list, Core_ten, tensor)
-            error=utilis.frobenius_norm_tensor(recon - tensor)
-            del(C, U, R, tensor, ranks)
+            print(f"Time needed: {timer - time.time()}")

@@ -60,32 +60,6 @@ def test_hosvd_B2():
 ##########################
 
 
-def test_full_pivot():
-    # Full rank reconstruction should have low frob norm error
-    N = 50
-    for obj in ["B1", "B2"]:
-        C_list = []
-        ranks = np.array([N, N, N])
-        if obj == "B1":
-            tensor = np.asarray(utilis.get_B_one(N))
-        else:
-            tensor = np.asarray(utilis.get_B_two(N))
-        for mode in range(3):
-            if mode == 0:
-                # Start with original matrix
-                Core_mat = tl.unfold(tensor, mode)
-            else:
-                Core_mat = tl.unfold(Core_ten, mode)
-            C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-8)
-            ranks[mode] = U.shape[0]
-            Core_ten = tl.fold(np.dot(U, R), mode, ranks)
-            C_list.append(C)
-
-        recon = utilis.reconstruct_tensor(C_list, Core_ten, tensor)
-        error = utilis.frobenius_norm_tensor(recon - tensor)
-        assert(error < 10e-8 * utilis.frobenius_norm_tensor(tensor))
-
-
 def test_generator_B1():
     # check whether functional and loop B1 generator are equal
     N = 50
@@ -152,62 +126,24 @@ def test_aca_func():
                     functional_generator = aca_fun.mode_m_matricization_fun(
                         aca_fun.b1, N, N, N)
                     C, U, R = aca_fun.aca_partial_pivoting(
-                        functional_generator, N, N * N, N, 10e-8 / 3)
+                        functional_generator, N, N * N, N, 10e-4 / 3)
                     tensor = np.asarray(utilis.get_B_one(N))
                 else:
                     functional_generator = aca_fun.mode_m_matricization_fun(
                         aca_fun.b2, N, N, N)
                     C, U, R = aca_fun.aca_partial_pivoting(
-                        functional_generator, N, N * N, N, 10e-8 / 3)
+                        functional_generator, N, N * N, N, 10e-4 / 3)
                     tensor = np.asarray(utilis.get_B_two(N))
             else:
                 Core_mat = tl.unfold(Core_ten, mode)
-                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-8 / 3)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-4 / 3)
             ranks[mode] = U.shape[0]
             Core_ten = tl.fold(np.dot(U, R), mode, ranks)
             C_list.append(C)
 
         recon = utilis.reconstruct_tensor(C_list, Core_ten, tensor)
         error = utilis.frobenius_norm_tensor(recon - tensor)
-        assert(error < 10e-8 * utilis.frobenius_norm_tensor(tensor))
-
-
-# def test_aca_part_b2():
-#     N = 50
-#     mode = 0  # 24558
-#     tensor = np.asarray(utilis.get_B_two(N))
-#     test_mat = tl.unfold(tensor, mode)
-#     # C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
-#     # recon_full = np.dot(C, np.dot(U, R))
-#     # del(C, U, R)
-
-#     functional_generator = aca_fun.mode_m_matricization_fun(
-#         aca_fun.b2, N, N, N)
-#     C, U, R = aca_fun.aca_partial_pivoting(
-#         functional_generator, N, N * N, N, 10e-10)
-#     recon_part = np.dot(C, np.dot(U, R))
-#     error = utilis.frobenius_norm_mat(
-#         recon_part - test_mat) / utilis.frobenius_norm_mat(test_mat)
-#     assert(error < 10e-10)
-
-
-# def test_aca_part_b1():
-#     N = 50
-#     mode = 0  # 24558
-#     tensor = np.asarray(utilis.get_B_one(N))
-#     test_mat = tl.unfold(tensor, mode)
-#     # C, U, R = utilis.aca_full_pivoting(test_mat, 10e-10)
-#     # recon_full = np.dot(C, np.dot(U, R))
-#     # del(C, U, R)
-
-#     functional_generator = aca_fun.mode_m_matricization_fun(
-#         aca_fun.b1, N, N, N)
-#     C, U, R = aca_fun.aca_partial_pivoting(
-#         functional_generator, N, N * N, N, 10e-10)
-#     recon_part = np.dot(C, np.dot(U, R))
-#     error = utilis.frobenius_norm_mat(
-#         recon_part - test_mat) / utilis.frobenius_norm_mat(test_mat)
-#     assert(error < 10e-10)
+        assert(error < 10e-4 * utilis.frobenius_norm_tensor(tensor))
 
 
 ##########################
@@ -309,3 +245,46 @@ def test_speed_aca_full_b2_N200(benchmark):
             Core_ten = tl.fold(np.dot(U, R), mode, ranks)
             C_list.append(C)
     benchmark(run_aca_full)
+
+@pytest.mark.slow
+def test_speed_aca_part_b1_N200(benchmark):
+    # Benchmark first mode 1 aca for B1
+    def run_aca_part():
+        N = 200
+        C_list = []
+        ranks = np.array([N, N, N])
+        for mode in range(3):
+            if mode == 0:
+                functional_generator = aca_fun.mode_m_matricization_fun(
+                    aca_fun.b1, N, N, N)
+                C, U, R = aca_fun.aca_partial_pivoting(
+                    functional_generator, N, N * N, N, 10e-5/3)
+            else:
+                Core_mat = tl.unfold(Core_ten, mode)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5/3)
+            ranks[mode] = U.shape[0]
+            Core_ten = tl.fold(np.dot(U, R), mode, ranks)
+            C_list.append(C)
+    benchmark(run_aca_part)
+
+
+@pytest.mark.slow
+def test_speed_aca_part_b1_N200(benchmark):
+    # Benchmark first mode 1 aca for B1
+    def run_aca_part():
+        N = 200
+        C_list = []
+        ranks = np.array([N, N, N])
+        for mode in range(3):
+            if mode == 0:
+                functional_generator = aca_fun.mode_m_matricization_fun(
+                    aca_fun.b2, N, N, N)
+                C, U, R = aca_fun.aca_partial_pivoting(
+                    functional_generator, N, N * N, N, 10e-5/3)
+            else:
+                Core_mat = tl.unfold(Core_ten, mode)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5/3)
+            ranks[mode] = U.shape[0]
+            Core_ten = tl.fold(np.dot(U, R), mode, ranks)
+            C_list.append(C)
+    benchmark(run_aca_part)

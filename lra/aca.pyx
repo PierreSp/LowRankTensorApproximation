@@ -172,20 +172,19 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
         else:
             u = get_u(fk, m, j, N)
             v = get_v(fk, i, n, delta, N)
-            all_v.append(np.asarray(v))
-            all_u.append(np.asarray(u))
+            v = np.asarray(v)
+            u = np.asarray(u)
+            all_v.append(v)
+            all_u.append(u)
             fk = closure_fk(fk, u, v)
             elem_counter += 1
             added_u_v = 0
             for p in range(elem_counter - 1):
-                added_u_v += u.T.dot(u_list[p]) * (v_list[p].T).dot(v)
+                added_u_v += np.asarray(u).T.dot(np.asarray(all_u[p])) * (np.asarray(all_v[p]).T).dot(np.asarray(v))
             est_norm_Rk += mem_view_dot(u, m) * \
                 mem_view_dot(v, n) + 2 * added_u_v
             i_used.append(i)
             j_used.append(j)
-            # print(f"est_norm_Rk: {est_norm_Rk}")
-            # print(f"mustuff: { mem_view_dot(u, m) * mem_view_dot(v, n)}")
-            # print(f"ustuff: {np.asarray(u).dot(np.asarray(u)) * np.asarray(v).dot(np.asarray(v))}")
         try:
             i_not_used.remove(i)
         except Exception as ex:
@@ -197,68 +196,9 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
             print(j)
         size_j -= 1
         i = arg_max_row(fk, np.array(i_not_used, dtype=np.int), j, N, size_i)
-        # _u = np.abs(np.array([fk(k, j,N) for j in range(m)]).copy())
-        # _u[i_used] = -1
-        # i = np.argmax(_u)
+
 
     R = np.array([[f(i, j, N) for j in range(n)] for i in i_used])
     U = np.linalg.inv(np.array([[f(i, j, N) for j in j_used] for i in i_used]))
     C = np.array([[f(i, j, N) for j in j_used] for i in range(m)])
-    return C, U, R
-
-
-def aca_partial_pivoting_mat(o_matrix, max_error):
-    """ACA with partial pivoting
-    """
-    Rk = o_matrix.copy()
-    I_used = []
-    j_used = []
-    i_not_used = [x for x in range(m)]
-    j_not_used = [x for x in range(n)]
-    size_i = len(i_not_used)
-    size_j = len(j_not_used)
-    u_list = []
-    v_list = []
-    i = 1
-    Rk_norm = 0
-    elem_counter = 1
-    while k == 1 or u.dot(u) * v.dot(v) > (max_error**2) * Rk_norm:
-        j = np.argmax(np.abs(Rk[i, j_not_used]))
-        j = j_not_used[j]
-        delta = Rk[i, j]
-        if np.isclose(delta, 0):
-            if np.min([size_i, size_j]) == 1:
-                print("break occured")
-                break
-        else:
-            u = Rk[:, j]
-            v = Rk[i, :].T / delta
-            Rk = Rk - np.outer(u, v)
-            u_list.append(u)
-            v_list.append(v)
-            elem_counter += 1
-            added_u_v = 0
-            for p in range(elem_counter - 1):
-                added_u_v += u.T.dot(u_list[p]) * (v_list[p].T).dot(v)
-            Rk_norm = Rk_norm + u.dot(u) * v.dot(v) + 2 * added_u_v
-
-            I_used.append(i)
-            J_used.append(j)
-        try:
-            i_not_used.remove(i)
-        except Exception as ex:
-            print(i)
-        size_i -= 1
-        try:
-            j_not_used.remove(j)
-        except Exception as ex:
-            print(j)
-        size_j -= 1
-        i = np.argmax(np.abs(Rk[i_not_used, j]))
-        i = j_not_used[i]
-
-    C = o_matrix[:, J_used]
-    R = o_matrix[I_used, :]
-    U = np.linalg.inv(o_matrix[I_used, :][:, J_used])
-
     return C, U, R
