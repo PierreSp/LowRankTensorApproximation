@@ -154,7 +154,7 @@ def test_aca_func():
 @pytest.mark.slow
 def test_speed_hosvd_B1_N200(benchmark):
     # Benchmark speed for N=200 for decomposition without reconstruction
-    N = 400
+    N = 200
     tensor = np.asarray(utilis.get_B_one(N))
     benchmark(utilis.compute_core, tensor, max_rel_error=10e-5)
 
@@ -162,7 +162,7 @@ def test_speed_hosvd_B1_N200(benchmark):
 @pytest.mark.slow
 def test_speed_hosvd_B2_N200(benchmark):
     # Benchmark speed for N=200 for decomposition without reconstruction
-    N = 400
+    N = 200
     tensor = np.asarray(utilis.get_B_two(N))
     benchmark(utilis.compute_core, tensor, max_rel_error=10e-5)
 
@@ -262,7 +262,7 @@ def test_speed_aca_part_b1_N200(benchmark):
 
 @pytest.mark.slow
 def test_speed_aca_part_b1_N200(benchmark):
-    # Benchmark first mode 1 aca for B1
+    # Benchmark first mode 1 aca for B2
     def run_aca_part():
         N = 200
         C_list = []
