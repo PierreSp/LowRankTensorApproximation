@@ -207,7 +207,7 @@ def test_speed_aca_full_b1_N200(benchmark):
                 Core_mat = tl.unfold(tensor, mode)
             else:
                 Core_mat = tl.unfold(Core_ten, mode)
-                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5)
+            C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5)
             ranks[mode] = U.shape[0]
             print(f'Current ranks: {ranks}')
             Core_ten = tl.fold(np.dot(U, R), mode, ranks)

@@ -23,7 +23,7 @@ def plot_singular_values(tensor):
     _, sigmas = utilis.calculate_SVD(tensor)
     for matrix in sigmas:
         plt.semilogy(
-            range(len(matrix)), matrix, '.')
+            range(len(matrix)), matrix, '.', markersize=7)
         plt.title(
             f'Singular values of {m + 1}-mode matricization')
         plt.show()
