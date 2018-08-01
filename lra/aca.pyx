@@ -39,7 +39,7 @@ cpdef double b2(int i, int j, int z, int N) nogil:
 
 def mode_m_matricization_fun(f,  d1,  d2,  d3):
     def matricized_f(i, j, N):
-        return f(i1, j % d2, j // d2, N)
+        return f(i, j % d2, j // d2, N)
     return matricized_f
 
 
@@ -172,20 +172,20 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
         else:
             u = get_u(fk, m, j, N)
             v = get_v(fk, i, n, delta, N)
-            all_v.append(v)
-            all_u.append(u)
+            all_v.append(np.asarray(v))
+            all_u.append(np.asarray(u))
             fk = closure_fk(fk, u, v)
             elem_counter += 1
             added_u_v = 0
-            for p in range(k - 1):
-                added_u_v += u.T.dot(u_list[l]) * (v_list[l].T).dot(v)
+            for p in range(elem_counter - 1):
+                added_u_v += u.T.dot(u_list[p]) * (v_list[p].T).dot(v)
             est_norm_Rk += mem_view_dot(u, m) * \
                 mem_view_dot(v, n) + 2 * added_u_v
             i_used.append(i)
             j_used.append(j)
-            print(f"est_norm_Rk: {est_norm_Rk}")
-            print(f"mustuff: { mem_view_dot(u, m) * mem_view_dot(v, n)}")
-            print(f"ustuff: {np.asarray(u).dot(np.asarray(u)) * np.asarray(v).dot(np.asarray(v))}")
+            # print(f"est_norm_Rk: {est_norm_Rk}")
+            # print(f"mustuff: { mem_view_dot(u, m) * mem_view_dot(v, n)}")
+            # print(f"ustuff: {np.asarray(u).dot(np.asarray(u)) * np.asarray(v).dot(np.asarray(v))}")
         try:
             i_not_used.remove(i)
         except Exception as ex:
@@ -207,27 +207,28 @@ cpdef aca_partial_pivoting(f, int m, int n, int N, double max_error):
     return C, U, R
 
 
-def aca_partial_pivoting_mat(o_matrix, epsilon):
+def aca_partial_pivoting_mat(o_matrix, max_error):
     """ACA with partial pivoting
     """
-    m, n = o_matrix.shape
     Rk = o_matrix.copy()
     I_used = []
     j_used = []
-    I_list = []
-    J_list = []
+    i_not_used = [x for x in range(m)]
+    j_not_used = [x for x in range(n)]
+    size_i = len(i_not_used)
+    size_j = len(j_not_used)
     u_list = []
     v_list = []
     i = 1
     Rk_norm = 0
-    k = 1
-    while k == 1 or u.dot(u) * v.dot(v) > (epsilon**2) * Rk_norm:
-        _Rk = np.abs(Rk[i, :].copy())
-        _Rk[J_list] = -1
-        j = np.argmax(_Rk)
+    elem_counter = 1
+    while k == 1 or u.dot(u) * v.dot(v) > (max_error**2) * Rk_norm:
+        j = np.argmax(np.abs(Rk[i, j_not_used]))
+        j = j_not_used[j]
         delta = Rk[i, j]
         if np.isclose(delta, 0):
-            if len(I_list) == np.min((m, n)) - 1:
+            if np.min([size_i, size_j]) == 1:
+                print("break occured")
                 break
         else:
             u = Rk[:, j]
@@ -235,20 +236,26 @@ def aca_partial_pivoting_mat(o_matrix, epsilon):
             Rk = Rk - np.outer(u, v)
             u_list.append(u)
             v_list.append(v)
-            k += 1
+            elem_counter += 1
             added_u_v = 0
-            for p in range(k - 1):
-                added_u_v += u.T.dot(u_list[l]) * (v_list[l].T).dot(v)
-
+            for p in range(elem_counter - 1):
+                added_u_v += u.T.dot(u_list[p]) * (v_list[p].T).dot(v)
             Rk_norm = Rk_norm + u.dot(u) * v.dot(v) + 2 * added_u_v
 
             I_used.append(i)
             J_used.append(j)
-        I_list.append(i)
-        J_list.append(j)
-        _u = np.abs(u.copy())
-        _u[I_list] = -1
-        i = np.argmax(_u)
+        try:
+            i_not_used.remove(i)
+        except Exception as ex:
+            print(i)
+        size_i -= 1
+        try:
+            j_not_used.remove(j)
+        except Exception as ex:
+            print(j)
+        size_j -= 1
+        i = np.argmax(np.abs(Rk[i_not_used, j]))
+        i = j_not_used[i]
 
     C = o_matrix[:, J_used]
     R = o_matrix[I_used, :]
