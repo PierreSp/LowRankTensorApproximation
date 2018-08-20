@@ -167,18 +167,18 @@ def test_speed_hosvd_B2_N200(benchmark):
     benchmark(utilis.compute_core, tensor, max_rel_error=10e-5)
 
 
-# @pytest.mark.slow
-# def test_speed_gen_B1_py_N200(benchmark):
-#     # Benchmark speed for N=200 for decomposition without reconstruction
-#     N = 200
-#     benchmark(py_gen_B1, N)
+@pytest.mark.slow
+def test_speed_gen_B1_py_N200(benchmark):
+    # Benchmark speed for N=200 for decomposition without reconstruction
+    N = 200
+    benchmark(py_gen_B1, N)
 
 
-# @pytest.mark.slow
-# def test_speed_gen_B2_py_N200(benchmark):
-#     # Benchmark speed for N=200 for decomposition without reconstruction
-#     N = 200
-#     benchmark(py_gen_B2, N)
+@pytest.mark.slow
+def test_speed_gen_B2_py_N200(benchmark):
+    # Benchmark speed for N=200 for decomposition without reconstruction
+    N = 200
+    benchmark(py_gen_B2, N)
 
 
 def test_speed_gen_B1_N200(benchmark):
@@ -262,6 +262,27 @@ def test_speed_aca_part_b1_N200(benchmark):
 
 @pytest.mark.slow
 def test_speed_aca_part_b1_N200(benchmark):
+    # Benchmark first mode 1 aca for B1
+    def run_aca_part():
+        N = 200
+        C_list = []
+        ranks = np.array([N, N, N])
+        for mode in range(3):
+            if mode == 0:
+                functional_generator = aca_fun.mode_m_matricization_fun(
+                    aca_fun.b1, N, N, N)
+                C, U, R = aca_fun.aca_partial_pivoting(
+                    functional_generator, N, N * N, N, 10e-5 / 3)
+            else:
+                Core_mat = tl.unfold(Core_ten, mode)
+                C, U, R = aca_fun.aca_full_pivoting(Core_mat, 10e-5 / 3)
+            ranks[mode] = U.shape[0]
+            Core_ten = tl.fold(np.dot(U, R), mode, ranks)
+            C_list.append(C)
+    benchmark(run_aca_part)
+
+@pytest.mark.slow
+def test_speed_aca_part_b2_N200(benchmark):
     # Benchmark first mode 1 aca for B2
     def run_aca_part():
         N = 200

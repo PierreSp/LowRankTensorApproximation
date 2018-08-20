@@ -7,15 +7,21 @@ import time
 
 # parser to provide parameters from terminal
 parser = argparse.ArgumentParser(
-    description='Calculate ACA and tucker decomposition for the LRA task4.')
-parser.add_argument('dimension', type=int, default=200,
-                    help='Dimension for the tensor')
+    description="Calculate ACA and tucker decomposition for the LRA task4."
+)
+parser.add_argument("dimension", type=int, default=200, help="Dimension for the tensor")
+parser.add_argument("--full", help="Calculates full ACA", action="store_true")
 parser.add_argument(
-    '--full', help='Calculates full ACA', action='store_true')
+    "--speed",
+    help="Calculates ACA without relative error (and B1)",
+    action="store_true",
+)
 parser.add_argument(
-    '--speed', help='Calculates ACA without relative error (and B1)', action='store_true')
-parser.add_argument('--acc', type=float, default=10e-4,
-                    help='Allowed error wrt. frobenius norm between tucker decomposition and original tensor')
+    "--acc",
+    type=float,
+    default=10e-4,
+    help="Allowed error wrt. frobenius norm between tucker decomposition and original tensor",
+)
 args = parser.parse_args()
 
 
@@ -37,7 +43,7 @@ if __name__ == "__main__":
             else:
                 tensor = np.asarray(utilis.get_B_two(N))
             for mode in range(3):
-                print(f'        Currently in mode {mode + 1} step')
+                print(f"        Currently in mode {mode + 1} step")
                 if mode == 0:
                     # Start with original matrix
                     Core_mat = tl.unfold(tensor, mode)
@@ -45,7 +51,7 @@ if __name__ == "__main__":
                     Core_mat = tl.unfold(Core_ten, mode)
                 C, U, R = aca_fun.aca_full_pivoting(Core_mat, args.acc / 3)
                 ranks[mode] = U.shape[0]
-                print(f'        Current ranks: {ranks}')
+                print(f"        Current ranks: {ranks}")
                 Core_ten = tl.fold(np.dot(U, R), mode, ranks)
                 all_C.append(C)
             utilis.reconstruct_tensor(all_C, Core_ten, tensor)
@@ -58,28 +64,32 @@ if __name__ == "__main__":
             all_C = []
             ranks = np.array([N, N, N])
             for mode in range(3):
-                print(f'        Currently in mode {mode + 1} step')
+                print(f"        Currently in mode {mode + 1} step")
                 if mode == 0:
                     if obj == "B1" and not args.speed:
                         functional_generator = aca_fun.mode_m_matricization_fun(
-                            aca_fun.b1, N, N, N)  # Initializes the functional B
+                            aca_fun.b1, N, N, N
+                        )  # Initializes the functional B
                         C, U, R = aca_fun.aca_partial_pivoting(
-                            functional_generator, N, N * N, N, args.acc / 3)
+                            functional_generator, N, N * N, N, args.acc / 3
+                        )
                         if not args.speed:
                             print("        Speed option activated")
                             tensor = np.asarray(utilis.get_B_one(N))
                     else:
                         functional_generator = aca_fun.mode_m_matricization_fun(
-                            aca_fun.b2, N, N, N)  # Initializes the functional B
+                            aca_fun.b2, N, N, N
+                        )  # Initializes the functional B
                         C, U, R = aca_fun.aca_partial_pivoting(
-                            functional_generator, N, N * N, N, args.acc / 3)
+                            functional_generator, N, N * N, N, args.acc / 3
+                        )
                         if not args.speed:
                             tensor = np.asarray(utilis.get_B_two(N))
                 else:
                     Core_mat = tl.unfold(Core_ten, mode)
                     C, U, R = aca_fun.aca_full_pivoting(Core_mat, args.acc / 3)
                 ranks[mode] = U.shape[0]
-                print(f'        Current ranks: {ranks}')
+                print(f"        Current ranks: {ranks}")
                 Core_ten = tl.fold(np.dot(U, R), mode, ranks)
                 all_C.append(C)
             if not args.speed:
