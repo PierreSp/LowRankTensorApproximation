@@ -1,8 +1,8 @@
-import pytest
+import lra.aca as aca_fun
 import lra.utilis as utilis
 import numpy as np
+import pytest
 import tensorly as tl
-import lra.aca as aca_fun
 
 
 def _tsi(x, N):

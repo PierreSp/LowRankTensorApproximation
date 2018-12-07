@@ -1,6 +1,6 @@
 matplotlib==2.2.2
 numpy==1.15.0
-Cython==0.28.4
+Cython>=0.28.4
 tensorly==0.4.2
 aca==1.1
 utilis==0.1.3

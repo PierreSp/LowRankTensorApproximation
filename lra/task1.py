@@ -1,13 +1,15 @@
-import utilis
-import numpy as np
 import argparse
+
 import matplotlib.pyplot as plt
+import numpy as np
+import utilis
 
 # parser to provide parameters from terminal
 parser = argparse.ArgumentParser(
     description="Calculate HOSVD and tucker decomposition for task1."
 )
-parser.add_argument("dimension", type=int, default=200, help="Dimension for the tensor")
+parser.add_argument("dimension", type=int,
+                    default=200, help="Dimension for the tensor")
 parser.add_argument(
     "--plot", help="Activates plotting of the eigenvalues", action="store_true"
 )
@@ -15,8 +17,8 @@ parser.add_argument(
     "--acc",
     type=float,
     default=10e-4,
-    help="Allowed error wrt. frobenius norm between tucker decomposition and original tensor",
-)
+    help="""Allowed error wrt. frobenius norm between
+    tucker decomposition and original tensor""",)
 args = parser.parse_args()
 
 
